@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToolBox Pro - Free Online PDF & Image Tools</title>
+    <meta name="description" content="Free online tools to merge, compress, and convert PDF and images. No installation required.">
+
+    <!-- PDF-lib for PDF operations -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- JSZip for creating zip files -->
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+    <!-- FileSaver for downloading files -->
+    <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --primary-light: #818cf8;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --red-500: #ef4444;
+            --red-600: #dc2626;
+            --green-500: #22c55e;
+            --green-600: #16a34a;
+            --blue-500: #3b82f6;
+            --yellow-500: #eab308;
+            --orange-500: #f97316;
+            --purple-500: #a855f7;
+            --pink-500: #ec4899;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        .navbar {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--gray-600);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .btn-upgrade {
+            background: var(--primary);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-upgrade:hover {
+            background: var(--primary-dark);
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+
+        /* Usage Counter */
+        .usage-banner {
+            background: rgba(255,255,255,0.1);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            display: inline-block;
+            margin-top: 1rem;
+        }
+
+        .usage-banner.warning {
+            background: rgba(234, 179, 8, 0.3);
+        }
+
+        /* Tools Grid */
+        .section {
+            padding: 4rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .section-title h2 {
+            font-size: 2rem;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .section-title p {
+            color: var(--gray-600);
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .tool-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            border-color: var(--primary-light);
+        }
+
+        .tool-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .tool-card h3 {
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .tool-card p {
+            color: var(--gray-600);
+            font-size: 0.9rem;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 1rem;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h2 {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray-500);
+            padding: 0.5rem;
+        }
+
+        .modal-close:hover {
+            color: var(--gray-900);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        /* Drop Zone */
+        .drop-zone {
+            border: 2px dashed var(--gray-300);
+            border-radius: 1rem;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--gray-50);
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.05);
+        }
+
+        .drop-zone-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .drop-zone p {
+            color: var(--gray-600);
+            margin-bottom: 0.5rem;
+        }
+
+        .drop-zone small {
+            color: var(--gray-500);
+        }
+
+        /* File List */
+        .file-list {
+            margin-top: 1rem;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: var(--gray-50);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .file-icon {
+            font-size: 1.25rem;
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: var(--gray-900);
+        }
+
+        .file-size {
+            font-size: 0.8rem;
+            color: var(--gray-500);
+        }
+
+        .file-remove {
+            background: none;
+            border: none;
+            color: var(--gray-400);
+            cursor: pointer;
+            font-size: 1.25rem;
+            padding: 0.25rem;
+        }
+
+        .file-remove:hover {
+            color: var(--red-500);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            border: none;
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--gray-100);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-200);
+        }
+
+        .btn-success {
+            background: var(--green-500);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: var(--green-600);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .modal-actions .btn {
+            flex: 1;
+        }
+
+        /* Progress */
+        .progress-container {
+            margin-top: 1.5rem;
+            display: none;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 0.5rem;
+            color: var(--gray-600);
+        }
+
+        /* Result */
+        .result-container {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .result-container.active {
+            display: block;
+        }
+
+        .result-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .result-container h3 {
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .result-container p {
+            color: var(--gray-600);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Options */
+        .options-group {
+            margin: 1.5rem 0;
+        }
+
+        .options-group label {
+            display: block;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+        }
+
+        .options-group input[type="range"] {
+            width: 100%;
+        }
+
+        .options-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .quality-value {
+            text-align: center;
+            color: var(--gray-600);
+            margin-top: 0.5rem;
+        }
+
+        /* Pricing Section */
+        .pricing-section {
+            background: white;
+            padding: 4rem 2rem;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .pricing-card {
+            border: 2px solid var(--gray-200);
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .pricing-card.popular {
+            border-color: var(--primary);
+            position: relative;
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 1rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .pricing-card h3 {
+            font-size: 1.5rem;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .pricing-card .price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .pricing-card .price span {
+            font-size: 1rem;
+            color: var(--gray-500);
+        }
+
+        .pricing-features {
+            list-style: none;
+            margin: 1.5rem 0;
+            text-align: left;
+        }
+
+        .pricing-features li {
+            padding: 0.5rem 0;
+            color: var(--gray-600);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .pricing-features li::before {
+            content: "✓";
+            color: var(--green-500);
+            font-weight: bold;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--gray-900);
+            color: var(--gray-400);
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .footer a {
+            color: var(--gray-400);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            color: white;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        /* Limit Warning */
+        .limit-modal {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .limit-modal h3 {
+            color: var(--gray-900);
+            margin-bottom: 1rem;
+        }
+
+        .limit-modal p {
+            color: var(--gray-600);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero h1 {
+                font-size: 1.75rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .modal {
+                margin: 1rem;
+            }
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid white;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="#" class="logo">ToolBox Pro</a>
+            <ul class="nav-links">
+                <li><a href="#pdf-tools">PDF Tools</a></li>
+                <li><a href="#image-tools">Image Tools</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+            </ul>
+            <a href="#pricing" class="btn-upgrade">Upgrade to Pro</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Free Online PDF & Image Tools</h1>
+        <p>Merge, compress, and convert your files instantly. No installation required. Works 100% in your browser.</p>
+        <div class="usage-banner" id="usageBanner">
+            <span id="usageText">5 of 5 free uses remaining today</span>
+        </div>
+    </section>
+
+    <!-- PDF Tools Section -->
+    <section class="section" id="pdf-tools">
+        <div class="section-title">
+            <h2>PDF Tools</h2>
+            <p>Everything you need to work with PDF files</p>
+        </div>
+        <div class="tools-grid">
+            <div class="tool-card" onclick="openTool('merge-pdf')">
+                <div class="tool-icon" style="background: #fef2f2; color: #ef4444;">📎</div>
+                <h3>Merge PDF</h3>
+                <p>Combine multiple PDF files into one document</p>
+            </div>
+            <div class="tool-card" onclick="openTool('split-pdf')">
+                <div class="tool-icon" style="background: #fff7ed; color: #f97316;">✂️</div>
+                <h3>Split PDF</h3>
+                <p>Extract specific pages from your PDF</p>
+            </div>
+            <div class="tool-card" onclick="openTool('compress-pdf')">
+                <div class="tool-icon" style="background: #fefce8; color: #eab308;">📦</div>
+                <h3>Compress PDF</h3>
+                <p>Reduce PDF file size while keeping quality</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Image Tools Section -->
+    <section class="section" id="image-tools" style="background: white;">
+        <div class="section-title">
+            <h2>Image Tools</h2>
+            <p>Powerful tools for all your image needs</p>
+        </div>
+        <div class="tools-grid">
+            <div class="tool-card" onclick="openTool('compress-image')">
+                <div class="tool-icon" style="background: #eff6ff; color: #3b82f6;">🗜️</div>
+                <h3>Compress Image</h3>
+                <p>Reduce image file size without losing quality</p>
+            </div>
+            <div class="tool-card" onclick="openTool('resize-image')">
+                <div class="tool-icon" style="background: #eef2ff; color: #6366f1;">📐</div>
+                <h3>Resize Image</h3>
+                <p>Change image dimensions easily</p>
+            </div>
+            <div class="tool-card" onclick="openTool('convert-image')">
+                <div class="tool-icon" style="background: #f5f3ff; color: #a855f7;">🔄</div>
+                <h3>Convert Image</h3>
+                <p>Convert between PNG, JPG, and WebP</p>
+            </div>
+            <div class="tool-card" onclick="openTool('image-to-pdf')">
+                <div class="tool-icon" style="background: #fdf2f8; color: #ec4899;">📄</div>
+                <h3>Image to PDF</h3>
+                <p>Create PDF from multiple images</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section class="pricing-section" id="pricing">
+        <div class="section-title">
+            <h2>Simple Pricing</h2>
+            <p>Choose the plan that works for you</p>
+        </div>
+        <div class="pricing-grid">
+            <div class="pricing-card">
+                <h3>Free</h3>
+                <div class="price">€0</div>
+                <ul class="pricing-features">
+                    <li>5 conversions per day</li>
+                    <li>All basic tools</li>
+                    <li>Files up to 10MB</li>
+                    <li>Standard processing</li>
+                </ul>
+                <button class="btn btn-secondary" style="width: 100%;">Current Plan</button>
+            </div>
+            <div class="pricing-card popular">
+                <span class="popular-badge">Most Popular</span>
+                <h3>Pro</h3>
+                <div class="price">€9.99<span>/month</span></div>
+                <ul class="pricing-features">
+                    <li>Unlimited conversions</li>
+                    <li>All tools included</li>
+                    <li>Files up to 100MB</li>
+                    <li>Priority processing</li>
+                    <li>No ads</li>
+                    <li>Email support</li>
+                </ul>
+                <a href="https://buy.stripe.com/test_YOUR_STRIPE_LINK" class="btn btn-primary" style="width: 100%;">Upgrade to Pro</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms of Service</a>
+            <a href="#">Contact</a>
+        </div>
+        <p>&copy; 2024 ToolBox Pro. All files are processed in your browser and never uploaded to any server.</p>
+    </footer>
+
+    <!-- Tool Modal -->
+    <div class="modal-overlay" id="toolModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle">Tool Name</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Limit Modal -->
+    <div class="modal-overlay" id="limitModal">
+        <div class="modal">
+            <div class="modal-body limit-modal">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">⚠️</div>
+                <h3>Daily Limit Reached</h3>
+                <p>You've used all 5 free conversions for today. Upgrade to Pro for unlimited access.</p>
+                <a href="#pricing" class="btn btn-primary" onclick="closeLimitModal()" style="width: 100%;">View Pro Plans</a>
+                <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--gray-500);">Or come back tomorrow for 5 more free uses</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Usage tracking
+        const DAILY_LIMIT = 5;
+        const STORAGE_KEY = 'toolbox_usage';
+
+        function getUsageData() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (!data) return { date: new Date().toDateString(), count: 0 };
+
+            const parsed = JSON.parse(data);
+            // Reset if it's a new day
+            if (parsed.date !== new Date().toDateString()) {
+                return { date: new Date().toDateString(), count: 0 };
+            }
+            return parsed;
+        }
+
+        function saveUsageData(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function getRemainingUses() {
+            const data = getUsageData();
+            return Math.max(0, DAILY_LIMIT - data.count);
+        }
+
+        function incrementUsage() {
+            const data = getUsageData();
+            data.count++;
+            saveUsageData(data);
+            updateUsageDisplay();
+            return data.count <= DAILY_LIMIT;
+        }
+
+        function canUse() {
+            return getRemainingUses() > 0;
+        }
+
+        function updateUsageDisplay() {
+            const remaining = getRemainingUses();
+            const banner = document.getElementById('usageBanner');
+            const text = document.getElementById('usageText');
+
+            text.textContent = `${remaining} of ${DAILY_LIMIT} free uses remaining today`;
+
+            if (remaining <= 2) {
+                banner.classList.add('warning');
+            } else {
+                banner.classList.remove('warning');
+            }
+        }
+
+        // Initialize usage display
+        updateUsageDisplay();
+
+        // File handling utilities
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Modal functions
+        let currentFiles = [];
+
+        function openTool(toolId) {
+            if (!canUse()) {
+                document.getElementById('limitModal').classList.add('active');
+                return;
+            }
+
+            currentFiles = [];
+            const modal = document.getElementById('toolModal');
+            const title = document.getElementById('modalTitle');
+            const body = document.getElementById('modalBody');
+
+            const tools = {
+                'merge-pdf': {
+                    title: '📎 Merge PDF',
+                    accept: '.pdf',
+                    multiple: true,
+                    process: mergePDFs
+                },
+                'split-pdf': {
+                    title: '✂️ Split PDF',
+                    accept: '.pdf',
+                    multiple: false,
+                    process: splitPDF,
+                    options: `
+                        <div class="options-group">
+                            <label>Pages to extract (e.g., 1-3, 5, 7-10)</label>
+                            <input type="text" id="splitPages" placeholder="1-3, 5, 7-10" style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 0.5rem;">
+                        </div>
+                    `
+                },
+                'compress-pdf': {
+                    title: '📦 Compress PDF',
+                    accept: '.pdf',
+                    multiple: false,
+                    process: compressPDF
+                },
+                'compress-image': {
+                    title: '🗜️ Compress Image',
+                    accept: 'image/*',
+                    multiple: true,
+                    process: compressImages,
+                    options: `
+                        <div class="options-group">
+                            <label>Quality: <span id="qualityValue">80</span>%</label>
+                            <input type="range" id="imageQuality" min="10" max="100" value="80" oninput="document.getElementById('qualityValue').textContent = this.value">
+                        </div>
+                    `
+                },
+                'resize-image': {
+                    title: '📐 Resize Image',
+                    accept: 'image/*',
+                    multiple: true,
+                    process: resizeImages,
+                    options: `
+                        <div class="options-group">
+                            <label>Width (px)</label>
+                            <input type="number" id="resizeWidth" placeholder="800" style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 0.5rem;">
+                        </div>
+                        <div class="options-group">
+                            <label>Height (px) - Leave empty to maintain aspect ratio</label>
+                            <input type="number" id="resizeHeight" placeholder="Auto" style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 0.5rem;">
+                        </div>
+                    `
+                },
+                'convert-image': {
+                    title: '🔄 Convert Image',
+                    accept: 'image/*',
+                    multiple: true,
+                    process: convertImages,
+                    options: `
+                        <div class="options-group">
+                            <label>Convert to</label>
+                            <select id="convertFormat">
+                                <option value="png">PNG</option>
+                                <option value="jpeg">JPG</option>
+                                <option value="webp">WebP</option>
+                            </select>
+                        </div>
+                    `
+                },
+                'image-to-pdf': {
+                    title: '📄 Image to PDF',
+                    accept: 'image/*',
+                    multiple: true,
+                    process: imagesToPDF
+                }
+            };
+
+            const tool = tools[toolId];
+            title.innerHTML = tool.title;
+
+            body.innerHTML = `
+                <div id="uploadSection">
+                    <div class="drop-zone" id="dropZone">
+                        <div class="drop-zone-icon">📁</div>
+                        <p>Drag & drop files here</p>
+                        <p>or <strong>click to browse</strong></p>
+                        <small>Accepts ${tool.accept}</small>
+                        <input type="file" id="fileInput" accept="${tool.accept}" ${tool.multiple ? 'multiple' : ''} style="display: none;">
+                    </div>
+                    <div class="file-list" id="fileList"></div>
+                    ${tool.options || ''}
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button class="btn btn-primary" id="processBtn" onclick="processFiles('${toolId}')" disabled>
+                            Process Files
+                        </button>
+                    </div>
+                </div>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                    <p class="progress-text" id="progressText">Processing...</p>
+                </div>
+                <div class="result-container" id="resultContainer">
+                    <div class="result-icon">✅</div>
+                    <h3>Processing Complete!</h3>
+                    <p id="resultText">Your file is ready to download</p>
+                    <button class="btn btn-success" id="downloadBtn">Download</button>
+                    <button class="btn btn-secondary" onclick="resetTool()" style="margin-top: 1rem; display: block; width: 100%;">Process More Files</button>
+                </div>
+            `;
+
+            setupDropZone();
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('toolModal').classList.remove('active');
+            currentFiles = [];
+        }
+
+        function closeLimitModal() {
+            document.getElementById('limitModal').classList.remove('active');
+        }
+
+        function setupDropZone() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                handleFiles(e.dataTransfer.files);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+            });
+        }
+
+        function handleFiles(files) {
+            for (let file of files) {
+                if (file.size > 10 * 1024 * 1024) {
+                    alert(`File ${file.name} is too large. Maximum size is 10MB for free users.`);
+                    continue;
+                }
+                currentFiles.push(file);
+            }
+            renderFileList();
+        }
+
+        function renderFileList() {
+            const list = document.getElementById('fileList');
+            const processBtn = document.getElementById('processBtn');
+
+            if (currentFiles.length === 0) {
+                list.innerHTML = '';
+                processBtn.disabled = true;
+                return;
+            }
+
+            list.innerHTML = currentFiles.map((file, index) => `
+                <div class="file-item">
+                    <div class="file-info">
+                        <span class="file-icon">📄</span>
+                        <div>
+                            <div class="file-name">${file.name}</div>
+                            <div class="file-size">${formatFileSize(file.size)}</div>
+                        </div>
+                    </div>
+                    <button class="file-remove" onclick="removeFile(${index})">×</button>
+                </div>
+            `).join('');
+
+            processBtn.disabled = false;
+        }
+
+        function removeFile(index) {
+            currentFiles.splice(index, 1);
+            renderFileList();
+        }
+
+        function resetTool() {
+            currentFiles = [];
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('progressContainer').classList.remove('active');
+            document.getElementById('resultContainer').classList.remove('active');
+            renderFileList();
+        }
+
+        function showProgress(percent, text) {
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('progressContainer').classList.add('active');
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = text;
+        }
+
+        function showResult(downloadFn, text) {
+            document.getElementById('progressContainer').classList.remove('active');
+            document.getElementById('resultContainer').classList.add('active');
+            document.getElementById('resultText').textContent = text;
+            document.getElementById('downloadBtn').onclick = downloadFn;
+        }
+
+        // Tool processing functions
+        async function processFiles(toolId) {
+            const processors = {
+                'merge-pdf': mergePDFs,
+                'split-pdf': splitPDF,
+                'compress-pdf': compressPDF,
+                'compress-image': compressImages,
+                'resize-image': resizeImages,
+                'convert-image': convertImages,
+                'image-to-pdf': imagesToPDF
+            };
+
+            await processors[toolId]();
+            incrementUsage();
+        }
+
+        // PDF Tools
+        async function mergePDFs() {
+            if (currentFiles.length < 2) {
+                alert('Please select at least 2 PDF files to merge');
+                return;
+            }
+
+            showProgress(10, 'Loading PDFs...');
+
+            const { PDFDocument } = PDFLib;
+            const mergedPdf = await PDFDocument.create();
+
+            for (let i = 0; i < currentFiles.length; i++) {
+                showProgress(10 + (i / currentFiles.length) * 70, `Processing ${currentFiles[i].name}...`);
+
+                const arrayBuffer = await currentFiles[i].arrayBuffer();
+                const pdf = await PDFDocument.load(arrayBuffer);
+                const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                pages.forEach(page => mergedPdf.addPage(page));
+            }
+
+            showProgress(90, 'Generating merged PDF...');
+            const pdfBytes = await mergedPdf.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+
+            showResult(() => {
+                saveAs(blob, 'merged.pdf');
+            }, `Merged ${currentFiles.length} PDFs successfully!`);
+        }
+
+        async function splitPDF() {
+            const pagesInput = document.getElementById('splitPages').value;
+            if (!pagesInput) {
+                alert('Please specify which pages to extract');
+                return;
+            }
+
+            showProgress(20, 'Loading PDF...');
+
+            const { PDFDocument } = PDFLib;
+            const arrayBuffer = await currentFiles[0].arrayBuffer();
+            const pdf = await PDFDocument.load(arrayBuffer);
+            const totalPages = pdf.getPageCount();
+
+            // Parse page ranges
+            const pageNumbers = [];
+            const ranges = pagesInput.split(',').map(s => s.trim());
+
+            for (const range of ranges) {
+                if (range.includes('-')) {
+                    const [start, end] = range.split('-').map(n => parseInt(n));
+                    for (let i = start; i <= end && i <= totalPages; i++) {
+                        if (i >= 1) pageNumbers.push(i - 1);
+                    }
+                } else {
+                    const num = parseInt(range);
+                    if (num >= 1 && num <= totalPages) {
+                        pageNumbers.push(num - 1);
+                    }
+                }
+            }
+
+            if (pageNumbers.length === 0) {
+                alert('No valid pages specified');
+                return;
+            }
+
+            showProgress(50, 'Extracting pages...');
+
+            const newPdf = await PDFDocument.create();
+            const pages = await newPdf.copyPages(pdf, pageNumbers);
+            pages.forEach(page => newPdf.addPage(page));
+
+            showProgress(90, 'Generating PDF...');
+            const pdfBytes = await newPdf.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+
+            showResult(() => {
+                saveAs(blob, 'extracted-pages.pdf');
+            }, `Extracted ${pageNumbers.length} pages successfully!`);
+        }
+
+        async function compressPDF() {
+            showProgress(20, 'Loading PDF...');
+
+            const { PDFDocument } = PDFLib;
+            const arrayBuffer = await currentFiles[0].arrayBuffer();
+            const pdf = await PDFDocument.load(arrayBuffer);
+
+            showProgress(60, 'Optimizing PDF...');
+
+            // Basic compression by re-saving (removes unused objects)
+            const pdfBytes = await pdf.save({
+                useObjectStreams: true,
+            });
+
+            const originalSize = currentFiles[0].size;
+            const newSize = pdfBytes.length;
+            const savings = ((originalSize - newSize) / originalSize * 100).toFixed(1);
+
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+
+            showResult(() => {
+                saveAs(blob, 'compressed.pdf');
+            }, `Reduced from ${formatFileSize(originalSize)} to ${formatFileSize(newSize)} (${savings}% smaller)`);
+        }
+
+        // Image Tools
+        async function compressImages() {
+            const quality = parseInt(document.getElementById('imageQuality').value) / 100;
+
+            showProgress(10, 'Processing images...');
+
+            const results = [];
+
+            for (let i = 0; i < currentFiles.length; i++) {
+                showProgress(10 + (i / currentFiles.length) * 80, `Compressing ${currentFiles[i].name}...`);
+
+                const compressed = await compressImage(currentFiles[i], quality);
+                results.push({ name: currentFiles[i].name.replace(/\.[^.]+$/, '.jpg'), blob: compressed });
+            }
+
+            if (results.length === 1) {
+                showResult(() => {
+                    saveAs(results[0].blob, results[0].name);
+                }, `Compressed successfully!`);
+            } else {
+                const zip = new JSZip();
+                results.forEach(r => zip.file(r.name, r.blob));
+
+                showProgress(95, 'Creating ZIP...');
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+                showResult(() => {
+                    saveAs(zipBlob, 'compressed-images.zip');
+                }, `Compressed ${results.length} images!`);
+            }
+        }
+
+        async function compressImage(file, quality) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+
+                    canvas.toBlob(resolve, 'image/jpeg', quality);
+                };
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
+        async function resizeImages() {
+            const width = parseInt(document.getElementById('resizeWidth').value);
+            const height = document.getElementById('resizeHeight').value ? parseInt(document.getElementById('resizeHeight').value) : null;
+
+            if (!width) {
+                alert('Please specify a width');
+                return;
+            }
+
+            showProgress(10, 'Processing images...');
+
+            const results = [];
+
+            for (let i = 0; i < currentFiles.length; i++) {
+                showProgress(10 + (i / currentFiles.length) * 80, `Resizing ${currentFiles[i].name}...`);
+
+                const resized = await resizeImage(currentFiles[i], width, height);
+                results.push({ name: 'resized-' + currentFiles[i].name, blob: resized });
+            }
+
+            if (results.length === 1) {
+                showResult(() => {
+                    saveAs(results[0].blob, results[0].name);
+                }, `Resized to ${width}px wide!`);
+            } else {
+                const zip = new JSZip();
+                results.forEach(r => zip.file(r.name, r.blob));
+
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+                showResult(() => {
+                    saveAs(zipBlob, 'resized-images.zip');
+                }, `Resized ${results.length} images!`);
+            }
+        }
+
+        async function resizeImage(file, targetWidth, targetHeight) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const ratio = img.height / img.width;
+                    const width = targetWidth;
+                    const height = targetHeight || Math.round(targetWidth * ratio);
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob(resolve, file.type || 'image/png');
+                };
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
+        async function convertImages() {
+            const format = document.getElementById('convertFormat').value;
+            const mimeType = 'image/' + format;
+
+            showProgress(10, 'Converting images...');
+
+            const results = [];
+
+            for (let i = 0; i < currentFiles.length; i++) {
+                showProgress(10 + (i / currentFiles.length) * 80, `Converting ${currentFiles[i].name}...`);
+
+                const converted = await convertImage(currentFiles[i], mimeType);
+                const ext = format === 'jpeg' ? 'jpg' : format;
+                results.push({ name: currentFiles[i].name.replace(/\.[^.]+$/, '.' + ext), blob: converted });
+            }
+
+            if (results.length === 1) {
+                showResult(() => {
+                    saveAs(results[0].blob, results[0].name);
+                }, `Converted to ${format.toUpperCase()}!`);
+            } else {
+                const zip = new JSZip();
+                results.forEach(r => zip.file(r.name, r.blob));
+
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+                showResult(() => {
+                    saveAs(zipBlob, 'converted-images.zip');
+                }, `Converted ${results.length} images to ${format.toUpperCase()}!`);
+            }
+        }
+
+        async function convertImage(file, mimeType) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+
+                    const ctx = canvas.getContext('2d');
+
+                    // Fill white background for JPEG (transparency handling)
+                    if (mimeType === 'image/jpeg') {
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }
+
+                    ctx.drawImage(img, 0, 0);
+
+                    canvas.toBlob(resolve, mimeType, 0.92);
+                };
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
+        async function imagesToPDF() {
+            if (currentFiles.length === 0) {
+                alert('Please select at least one image');
+                return;
+            }
+
+            showProgress(10, 'Creating PDF...');
+
+            const { PDFDocument } = PDFLib;
+            const pdfDoc = await PDFDocument.create();
+
+            for (let i = 0; i < currentFiles.length; i++) {
+                showProgress(10 + (i / currentFiles.length) * 80, `Adding ${currentFiles[i].name}...`);
+
+                const imageBytes = await currentFiles[i].arrayBuffer();
+                let image;
+
+                try {
+                    if (currentFiles[i].type === 'image/png') {
+                        image = await pdfDoc.embedPng(imageBytes);
+                    } else {
+                        // Convert to JPEG for other formats
+                        const jpegBlob = await convertImage(currentFiles[i], 'image/jpeg');
+                        const jpegBytes = await jpegBlob.arrayBuffer();
+                        image = await pdfDoc.embedJpg(jpegBytes);
+                    }
+
+                    const page = pdfDoc.addPage([image.width, image.height]);
+                    page.drawImage(image, {
+                        x: 0,
+                        y: 0,
+                        width: image.width,
+                        height: image.height,
+                    });
+                } catch (e) {
+                    console.error('Error embedding image:', e);
+                }
+            }
+
+            showProgress(95, 'Generating PDF...');
+            const pdfBytes = await pdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+
+            showResult(() => {
+                saveAs(blob, 'images.pdf');
+            }, `Created PDF with ${currentFiles.length} pages!`);
+        }
+
+        // Close modal on overlay click
+        document.getElementById('toolModal').addEventListener('click', (e) => {
+            if (e.target.id === 'toolModal') {
+                closeModal();
+            }
+        });
+
+        document.getElementById('limitModal').addEventListener('click', (e) => {
+            if (e.target.id === 'limitModal') {
+                closeLimitModal();
+            }
+        });
+    </script>
+</body>
+</html>
