@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kuvien järjestely paperille – A4 tulostustarkka</title>
+<style>
+  :root{
+    --paper-w-mm: 210; /* A4 */
+    --paper-h-mm: 297;
+    --paper-bg: #ffffff;
+    --accent: #2563eb;
+    --ink: #111827;
+    --ui: #f3f4f6;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; margin:0; font-family: system-ui; color:var(--ink);} 
+  body{ display:flex; flex-direction:column; background:#fafafa; }
+
+  .toolbar{ position:sticky; top:0; z-index:50; display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; padding:.6rem; border-bottom:1px solid #e5e7eb; background:#fff; }
+  .group{ display:flex; gap:.4rem; align-items:center; padding:.3rem; background:var(--ui); border-radius:999px; }
+  button, select, input[type="number"], input[type="color"]{ appearance:none; border:1px solid #e5e7eb; background:#fff; padding:.45rem .7rem; border-radius:999px; font-size:.9rem; cursor:pointer; }
+  .spacer{ flex:1; }
+
+  .workspace{ display:grid; place-items:center; padding:1rem; height:100%; overflow:auto; }
+  .paper{ position:relative; width: calc(var(--paper-w-mm) * 1mm); height: calc(var(--paper-h-mm) * 1mm); background:var(--paper-bg); box-shadow: 0 10px 30px rgba(0,0,0,.12); border:1px solid #e5e7eb; overflow:hidden; }
+  .paper-grid{ position:absolute; inset:0; background: conic-gradient(from 90deg at 1px 1px, #0000 90deg, #0001 0) 0 0/20px 20px; opacity:.05; pointer-events:none; }
+
+  .item{ position:absolute; min-width:20px; min-height:20px; border:1px dashed transparent; z-index:2; }
+  .item.selected{ border-color: var(--accent); box-shadow: 0 0 0 2px #bfdbfe55; }
+  .handle{ position:absolute; width:14px; height:14px; background:#fff; border:1px solid var(--accent); border-radius:3px; z-index:3; }
+  .handle.nw{ left:-7px; top:-7px; cursor:nwse-resize; }
+  .handle.ne{ right:-7px; top:-7px; cursor:nesw-resize; }
+  .handle.sw{ left:-7px; bottom:-7px; cursor:nesw-resize; }
+  .handle.se{ right:-7px; bottom:-7px; cursor:nwse-resize; }
+
+  .img-item img{ display:block; width:100%; height:100%; object-fit:contain; border-radius:2px; }
+
+  /* Tulostus: 1:1 koko ja ei skrolleja/kehystä */
+  @media print{
+    @page { size: 210mm 297mm; margin: 0; }
+    html, body{ height:auto !important; overflow:visible !important; background:#fff !important; }
+    .workspace{ padding:0 !important; height:auto !important; overflow:visible !important; }
+    .paper{ box-shadow:none !important; border:none !important; margin:0 !important; width:210mm !important; height:297mm !important; }
+    .toolbar, .handle{ display:none !important; }
+    .item{ border:none !important; box-shadow:none !important; }
+    *::-webkit-scrollbar{ display:none !important; }
+    *{ scrollbar-width:none !important; -ms-overflow-style:none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <div class="group">
+      <button id="tool-image">🖼️ Kuva</button>
+      <input type="file" id="imageLoader" accept="image/*" style="display:none" />
+      <button id="delete-selected">🗑️ Poista</button>
+    </div>
+
+    <div class="group" id="size-controls" style="display:none">
+      <label>Leveys (mm) <input type="number" id="itemWidth" min="10" step="1" style="width:6rem"></label>
+      <label>Korkeus (mm) <input type="number" id="itemHeight" min="10" step="1" style="width:6rem"></label>
+      <label><input type="checkbox" id="lockAspect" checked> Lukitse kuvasuhde</label>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="group"><button id="print">🖨️ Tulosta</button></div>
+  </div>
+
+  <div class="workspace">
+    <div class="paper" id="paper">
+      <div class="paper-grid"></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const paper = document.getElementById('paper');
+  const imgBtn = document.getElementById('tool-image');
+  const fileInput = document.getElementById('imageLoader');
+  const delBtn = document.getElementById('delete-selected');
+  const sizeControls = document.getElementById('size-controls');
+
+  const currentPaperMm = { w:210, h:297 }; // A4
+  const state = { selected:null };
+
+  // --- Yksiköt ---
+  function mmXPerPx(){ return currentPaperMm.w / paper.clientWidth; }
+  function mmYPerPx(){ return currentPaperMm.h / paper.clientHeight; }
+  function pxXPerMm(){ return paper.clientWidth / currentPaperMm.w; }
+  function pxYPerMm(){ return paper.clientHeight / currentPaperMm.h; }
+
+  // --- Valinta ---
+  function selectItem(el){
+    if(state.selected) state.selected.classList.remove('selected');
+    state.selected = el; if(el) el.classList.add('selected');
+    updateSizeControls();
+  }
+
+  function updateSizeControls(){
+    if(state.selected && state.selected.classList.contains('img-item')){
+      sizeControls.style.display='flex';
+      const r = state.selected.getBoundingClientRect();
+      document.getElementById('itemWidth').value  = Math.round(r.width  * mmXPerPx());
+      document.getElementById('itemHeight').value = Math.round(r.height * mmYPerPx());
+    } else {
+      sizeControls.style.display='none';
+    }
+  }
+
+  // --- Lisää kuva ---
+  imgBtn.addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', (e)=>{
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const url = URL.createObjectURL(f);
+    addImageItem(url);
+    fileInput.value='';
+  });
+
+  function createItemBase(){
+    const el = document.createElement('div');
+    el.className='item';
+    el.style.left='20px'; el.style.top='20px'; el.style.width='200px'; el.style.height='150px';
+    ;['nw','ne','sw','se'].forEach(pos=>{ const h=document.createElement('div'); h.className='handle '+pos; el.appendChild(h); });
+    paper.appendChild(el);
+    attachDragResize(el);
+    selectItem(el);
+    return el;
+  }
+
+  function addImageItem(src){
+    const el = createItemBase(); el.classList.add('img-item');
+    const img = document.createElement('img'); img.src = src; img.draggable=false; el.appendChild(img);
+    img.onload = ()=>{
+      const maxW = paper.clientWidth * 0.6; const maxH = paper.clientHeight * 0.6;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const s = Math.min(maxW/w, maxH/h, 1);
+      el.style.width = (w*s)+'px'; el.style.height = (h*s)+'px';
+      updateSizeControls();
+    };
+  }
+
+  // --- Drag & Resize ---
+  function attachDragResize(el){
+    let mode=null, start={x:0,y:0,l:0,t:0,w:0,h:0,aspect:1};
+
+    const onDown=(e)=>{
+      const t=e.target; mode = t.classList.contains('handle')? 'resize-'+[...t.classList].find(c=>/^nw|ne|sw|se$/.test(c)) : 'move';
+      selectItem(el);
+      const r=el.getBoundingClientRect(), pr=paper.getBoundingClientRect();
+      start={x:e.clientX,y:e.clientY,l:r.left-pr.left,t:r.top-pr.top,w:r.width,h:r.height,aspect:r.width/r.height};
+      window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp); e.preventDefault();
+    };
+
+    const onMove=(e)=>{
+      const dx=e.clientX-start.x, dy=e.clientY-start.y; const maxW=paper.clientWidth, maxH=paper.clientHeight;
+      if(mode==='move'){
+        let nl=start.l+dx, nt=start.t+dy; nl=Math.max(0,Math.min(maxW-start.w,nl)); nt=Math.max(0,Math.min(maxH-start.h,nt)); el.style.left=nl+'px'; el.style.top=nt+'px';
+      } else if(mode){
+        let w=start.w,h=start.h,l=start.l,t=start.t; const keep=el.classList.contains('img-item'); const c=mode.split('-')[1];
+        if(c==='se'){ w=start.w+dx; h=keep? w/start.aspect : start.h+dy; }
+        if(c==='ne'){ w=start.w+dx; h=keep? w/start.aspect : start.h-dy; t=start.t+(start.h-h); }
+        if(c==='sw'){ w=start.w-dx; h=keep? w/start.aspect : start.h+dy; l=start.l+(start.w-w); }
+        if(c==='nw'){ w=start.w-dx; h=keep? w/start.aspect : start.h-dy; l=start.l+(start.w-w); t=start.t+(start.h-h); }
+        w=Math.max(20,Math.min(maxW-l,w)); h=Math.max(20,Math.min(maxH-t,h)); el.style.width=w+'px'; el.style.height=h+'px'; el.style.left=l+'px'; el.style.top=t+'px';
+      }
+      updateSizeControls();
+    };
+
+    const onUp=()=>{ window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+
+    el.addEventListener('pointerdown', onDown);
+  }
+
+  // --- Valinnat paperilta ---
+  paper.addEventListener('pointerdown', (e)=>{ if(e.target===paper) selectItem(null); });
+  paper.addEventListener('click', (e)=>{ const it=e.target.closest('.item'); if(it) selectItem(it); });
+
+  // --- Mittakentät (mm) ---
+  document.getElementById('itemWidth').addEventListener('input', ()=>{
+    if(!state.selected) return; const keep=document.getElementById('lockAspect').checked;
+    let wmm = parseFloat(document.getElementById('itemWidth').value)||0; wmm=Math.max(5,wmm);
+    let wpx = wmm * pxXPerMm();
+    if(keep){ const ratio = state.selected.offsetHeight/state.selected.offsetWidth || 1; state.selected.style.width=wpx+'px'; state.selected.style.height=(wpx*ratio)+'px'; }
+    else { state.selected.style.width=wpx+'px'; }
+    updateSizeControls();
+  });
+  document.getElementById('itemHeight').addEventListener('input', ()=>{
+    if(!state.selected) return; const keep=document.getElementById('lockAspect').checked;
+    let hmm = parseFloat(document.getElementById('itemHeight').value)||0; hmm=Math.max(5,hmm);
+    let hpx = hmm * pxYPerMm();
+    if(keep){ const ratio = state.selected.offsetWidth/state.selected.offsetHeight || 1; state.selected.style.height=hpx+'px'; state.selected.style.width=(hpx*ratio)+'px'; }
+    else { state.selected.style.height=hpx+'px'; }
+    updateSizeControls();
+  });
+
+  // --- Poisto ---
+  delBtn.addEventListener('click', ()=>{ if(state.selected){ state.selected.remove(); selectItem(null);} });
+  window.addEventListener('keydown', (e)=>{ if((e.key==='Delete'||e.key==='Backspace') && state.selected){ state.selected.remove(); selectItem(null);} });
+
+  // --- Tulostus: muunna kaikki mitat mm:iksi ennen tulostusta ja palauta jälkeen ---
+  function convertAllToMm(){
+    document.querySelectorAll('#paper .item').forEach(el=>{
+      const r = el.getBoundingClientRect(); const pr = paper.getBoundingClientRect();
+      const leftPx = r.left - pr.left; const topPx = r.top - pr.top;
+      el.dataset.prevLeft = el.style.left; el.dataset.prevTop = el.style.top; el.dataset.prevWidth = el.style.width; el.dataset.prevHeight = el.style.height;
+      el.style.left = (leftPx * mmXPerPx()).toFixed(2) + 'mm';
+      el.style.top  = (topPx  * mmYPerPx()).toFixed(2) + 'mm';
+      el.style.width  = (r.width  * mmXPerPx()).toFixed(2) + 'mm';
+      el.style.height = (r.height * mmYPerPx()).toFixed(2) + 'mm';
+    });
+  }
+  function restoreFromPx(){
+    document.querySelectorAll('#paper .item').forEach(el=>{
+      if(el.dataset.prevLeft){ el.style.left = el.dataset.prevLeft; }
+      if(el.dataset.prevTop){ el.style.top = el.dataset.prevTop; }
+      if(el.dataset.prevWidth){ el.style.width = el.dataset.prevWidth; }
+      if(el.dataset.prevHeight){ el.style.height = el.dataset.prevHeight; }
+    });
+  }
+
+  window.addEventListener('beforeprint', ()=>{ selectItem(null); convertAllToMm(); });
+  window.addEventListener('afterprint', ()=>{ restoreFromPx(); });
+  document.getElementById('print').addEventListener('click', ()=>{ window.print(); });
+})();
+</script>
+</body>
+</html>
