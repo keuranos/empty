@@ -1631,321 +1631,228 @@
         // =============================================
         // A4 PRINT LAYOUT FUNCTIONALITY
         // =============================================
-        (function() {
-            const overlay = document.getElementById('a4LayoutOverlay');
+        let a4SelectedItem = null;
+        const A4_MM = { w: 210, h: 297 };
+
+        function openA4PrintLayout() {
+            if (!canUse()) {
+                document.getElementById('limitModal').classList.add('active');
+                return;
+            }
+            document.getElementById('a4LayoutOverlay').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeA4PrintLayout() {
+            document.getElementById('a4LayoutOverlay').classList.remove('active');
+            document.body.style.overflow = '';
+            document.querySelectorAll('#a4Paper .a4-item').forEach(el => el.remove());
+            a4SelectedItem = null;
+            document.getElementById('a4SizeControls').style.display = 'none';
+        }
+
+        function a4GetPaper() { return document.getElementById('a4Paper'); }
+        function a4MmPerPxX() { return A4_MM.w / a4GetPaper().clientWidth; }
+        function a4MmPerPxY() { return A4_MM.h / a4GetPaper().clientHeight; }
+        function a4PxPerMmX() { return a4GetPaper().clientWidth / A4_MM.w; }
+        function a4PxPerMmY() { return a4GetPaper().clientHeight / A4_MM.h; }
+
+        function a4SelectItem(el) {
+            if (a4SelectedItem) a4SelectedItem.classList.remove('selected');
+            a4SelectedItem = el;
+            if (el) el.classList.add('selected');
+            a4UpdateSizeControls();
+        }
+
+        function a4UpdateSizeControls() {
+            const controls = document.getElementById('a4SizeControls');
+            const wInput = document.getElementById('a4ItemWidth');
+            const hInput = document.getElementById('a4ItemHeight');
+            if (a4SelectedItem) {
+                controls.style.display = 'flex';
+                const r = a4SelectedItem.getBoundingClientRect();
+                wInput.value = Math.round(r.width * a4MmPerPxX());
+                hInput.value = Math.round(r.height * a4MmPerPxY());
+            } else {
+                controls.style.display = 'none';
+            }
+        }
+
+        function a4AddImageItem(src) {
+            const paper = a4GetPaper();
+            const el = document.createElement('div');
+            el.className = 'a4-item';
+            el.style.cssText = 'left:20px;top:20px;width:200px;height:150px;';
+
+            ['nw','ne','sw','se'].forEach(pos => {
+                const h = document.createElement('div');
+                h.className = 'a4-handle ' + pos;
+                el.appendChild(h);
+            });
+
+            const img = document.createElement('img');
+            img.src = src;
+            img.draggable = false;
+            el.appendChild(img);
+            paper.appendChild(el);
+
+            a4AttachDragResize(el);
+            a4SelectItem(el);
+
+            img.onload = () => {
+                const maxW = paper.clientWidth * 0.5;
+                const maxH = paper.clientHeight * 0.5;
+                const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+                el.style.width = (img.naturalWidth * scale) + 'px';
+                el.style.height = (img.naturalHeight * scale) + 'px';
+                a4UpdateSizeControls();
+            };
+        }
+
+        function a4AttachDragResize(el) {
+            let mode = null, start = {};
+
+            el.addEventListener('pointerdown', (e) => {
+                const t = e.target;
+                mode = t.classList.contains('a4-handle')
+                    ? 'resize-' + [...t.classList].find(c => /^nw|ne|sw|se$/.test(c))
+                    : 'move';
+                a4SelectItem(el);
+
+                const paper = a4GetPaper();
+                const r = el.getBoundingClientRect();
+                const pr = paper.getBoundingClientRect();
+                start = {
+                    x: e.clientX, y: e.clientY,
+                    l: r.left - pr.left, t: r.top - pr.top,
+                    w: r.width, h: r.height,
+                    aspect: r.width / r.height
+                };
+
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onUp);
+                e.preventDefault();
+            });
+
+            function onMove(e) {
+                const paper = a4GetPaper();
+                const dx = e.clientX - start.x, dy = e.clientY - start.y;
+                const maxW = paper.clientWidth, maxH = paper.clientHeight;
+                const lock = document.getElementById('a4LockAspect').checked;
+
+                if (mode === 'move') {
+                    el.style.left = Math.max(0, Math.min(maxW - start.w, start.l + dx)) + 'px';
+                    el.style.top = Math.max(0, Math.min(maxH - start.h, start.t + dy)) + 'px';
+                } else {
+                    let w = start.w, h = start.h, l = start.l, t = start.t;
+                    const corner = mode.split('-')[1];
+
+                    if (corner === 'se') { w = start.w + dx; h = lock ? w / start.aspect : start.h + dy; }
+                    if (corner === 'ne') { w = start.w + dx; h = lock ? w / start.aspect : start.h - dy; t = start.t + (start.h - h); }
+                    if (corner === 'sw') { w = start.w - dx; h = lock ? w / start.aspect : start.h + dy; l = start.l + (start.w - w); }
+                    if (corner === 'nw') { w = start.w - dx; h = lock ? w / start.aspect : start.h - dy; l = start.l + (start.w - w); t = start.t + (start.h - h); }
+
+                    el.style.width = Math.max(20, Math.min(maxW - l, w)) + 'px';
+                    el.style.height = Math.max(20, Math.min(maxH - t, h)) + 'px';
+                    el.style.left = l + 'px';
+                    el.style.top = t + 'px';
+                }
+                a4UpdateSizeControls();
+            }
+
+            function onUp() {
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+            }
+        }
+
+        // Initialize A4 Layout event listeners when DOM ready
+        document.addEventListener('DOMContentLoaded', function() {
             const paper = document.getElementById('a4Paper');
-            const addImageBtn = document.getElementById('a4AddImage');
-            const imageInput = document.getElementById('a4ImageInput');
-            const deleteBtn = document.getElementById('a4DeleteSelected');
-            const sizeControls = document.getElementById('a4SizeControls');
-            const printBtn = document.getElementById('a4Print');
-            const closeBtn = document.getElementById('a4Close');
-            const widthInput = document.getElementById('a4ItemWidth');
-            const heightInput = document.getElementById('a4ItemHeight');
-            const lockAspect = document.getElementById('a4LockAspect');
+            const overlay = document.getElementById('a4LayoutOverlay');
 
-            const PAPER_MM = { w: 210, h: 297 };
-            let selectedItem = null;
-
-            // Unit conversion helpers
-            function mmXPerPx() { return PAPER_MM.w / paper.clientWidth; }
-            function mmYPerPx() { return PAPER_MM.h / paper.clientHeight; }
-            function pxXPerMm() { return paper.clientWidth / PAPER_MM.w; }
-            function pxYPerMm() { return paper.clientHeight / PAPER_MM.h; }
-
-            // Selection management
-            function selectItem(el) {
-                if (selectedItem) selectedItem.classList.remove('selected');
-                selectedItem = el;
-                if (el) el.classList.add('selected');
-                updateSizeControls();
-            }
-
-            function updateSizeControls() {
-                if (selectedItem) {
-                    sizeControls.style.display = 'flex';
-                    const r = selectedItem.getBoundingClientRect();
-                    widthInput.value = Math.round(r.width * mmXPerPx());
-                    heightInput.value = Math.round(r.height * mmYPerPx());
-                } else {
-                    sizeControls.style.display = 'none';
-                }
-            }
-
-            // Add image to paper
-            function addImageItem(src) {
-                const el = document.createElement('div');
-                el.className = 'a4-item';
-                el.style.left = '20px';
-                el.style.top = '20px';
-                el.style.width = '200px';
-                el.style.height = '150px';
-
-                // Add resize handles
-                ['nw', 'ne', 'sw', 'se'].forEach(pos => {
-                    const handle = document.createElement('div');
-                    handle.className = 'a4-handle ' + pos;
-                    el.appendChild(handle);
-                });
-
-                // Add image
-                const img = document.createElement('img');
-                img.src = src;
-                img.draggable = false;
-                el.appendChild(img);
-
-                paper.appendChild(el);
-                attachDragResize(el);
-                selectItem(el);
-
-                // Resize to fit nicely when loaded
-                img.onload = () => {
-                    const maxW = paper.clientWidth * 0.5;
-                    const maxH = paper.clientHeight * 0.5;
-                    let w = img.naturalWidth, h = img.naturalHeight;
-                    const scale = Math.min(maxW / w, maxH / h, 1);
-                    el.style.width = (w * scale) + 'px';
-                    el.style.height = (h * scale) + 'px';
-                    el.dataset.aspect = (w / h).toString();
-                    updateSizeControls();
-                };
-            }
-
-            // Drag and resize functionality
-            function attachDragResize(el) {
-                let mode = null;
-                let start = { x: 0, y: 0, l: 0, t: 0, w: 0, h: 0, aspect: 1 };
-
-                const onDown = (e) => {
-                    const t = e.target;
-                    if (t.classList.contains('a4-handle')) {
-                        mode = 'resize-' + [...t.classList].find(c => /^nw|ne|sw|se$/.test(c));
-                    } else {
-                        mode = 'move';
-                    }
-                    selectItem(el);
-
-                    const r = el.getBoundingClientRect();
-                    const pr = paper.getBoundingClientRect();
-                    start = {
-                        x: e.clientX,
-                        y: e.clientY,
-                        l: r.left - pr.left,
-                        t: r.top - pr.top,
-                        w: r.width,
-                        h: r.height,
-                        aspect: r.width / r.height
-                    };
-
-                    window.addEventListener('pointermove', onMove);
-                    window.addEventListener('pointerup', onUp);
-                    e.preventDefault();
-                };
-
-                const onMove = (e) => {
-                    const dx = e.clientX - start.x;
-                    const dy = e.clientY - start.y;
-                    const maxW = paper.clientWidth;
-                    const maxH = paper.clientHeight;
-
-                    if (mode === 'move') {
-                        let nl = start.l + dx;
-                        let nt = start.t + dy;
-                        nl = Math.max(0, Math.min(maxW - start.w, nl));
-                        nt = Math.max(0, Math.min(maxH - start.h, nt));
-                        el.style.left = nl + 'px';
-                        el.style.top = nt + 'px';
-                    } else if (mode) {
-                        let w = start.w, h = start.h, l = start.l, t = start.t;
-                        const keep = lockAspect.checked;
-                        const corner = mode.split('-')[1];
-
-                        if (corner === 'se') {
-                            w = start.w + dx;
-                            h = keep ? w / start.aspect : start.h + dy;
-                        }
-                        if (corner === 'ne') {
-                            w = start.w + dx;
-                            h = keep ? w / start.aspect : start.h - dy;
-                            t = start.t + (start.h - h);
-                        }
-                        if (corner === 'sw') {
-                            w = start.w - dx;
-                            h = keep ? w / start.aspect : start.h + dy;
-                            l = start.l + (start.w - w);
-                        }
-                        if (corner === 'nw') {
-                            w = start.w - dx;
-                            h = keep ? w / start.aspect : start.h - dy;
-                            l = start.l + (start.w - w);
-                            t = start.t + (start.h - h);
-                        }
-
-                        w = Math.max(20, Math.min(maxW - l, w));
-                        h = Math.max(20, Math.min(maxH - t, h));
-                        el.style.width = w + 'px';
-                        el.style.height = h + 'px';
-                        el.style.left = l + 'px';
-                        el.style.top = t + 'px';
-                    }
-                    updateSizeControls();
-                };
-
-                const onUp = () => {
-                    window.removeEventListener('pointermove', onMove);
-                    window.removeEventListener('pointerup', onUp);
-                };
-
-                el.addEventListener('pointerdown', onDown);
-            }
-
-            // Size input handlers
-            widthInput.addEventListener('input', () => {
-                if (!selectedItem) return;
-                const keep = lockAspect.checked;
-                let wmm = parseFloat(widthInput.value) || 0;
-                wmm = Math.max(5, wmm);
-                let wpx = wmm * pxXPerMm();
-
-                if (keep) {
-                    const ratio = selectedItem.offsetHeight / selectedItem.offsetWidth || 1;
-                    selectedItem.style.width = wpx + 'px';
-                    selectedItem.style.height = (wpx * ratio) + 'px';
-                } else {
-                    selectedItem.style.width = wpx + 'px';
-                }
-                updateSizeControls();
+            document.getElementById('a4AddImage').addEventListener('click', () => {
+                document.getElementById('a4ImageInput').click();
             });
 
-            heightInput.addEventListener('input', () => {
-                if (!selectedItem) return;
-                const keep = lockAspect.checked;
-                let hmm = parseFloat(heightInput.value) || 0;
-                hmm = Math.max(5, hmm);
-                let hpx = hmm * pxYPerMm();
-
-                if (keep) {
-                    const ratio = selectedItem.offsetWidth / selectedItem.offsetHeight || 1;
-                    selectedItem.style.height = hpx + 'px';
-                    selectedItem.style.width = (hpx * ratio) + 'px';
-                } else {
-                    selectedItem.style.height = hpx + 'px';
+            document.getElementById('a4ImageInput').addEventListener('change', (e) => {
+                for (let f of e.target.files) {
+                    a4AddImageItem(URL.createObjectURL(f));
                 }
-                updateSizeControls();
+                e.target.value = '';
             });
 
-            // Event listeners
-            addImageBtn.addEventListener('click', () => imageInput.click());
-
-            imageInput.addEventListener('change', (e) => {
-                const files = e.target.files;
-                if (!files) return;
-                for (let f of files) {
-                    const url = URL.createObjectURL(f);
-                    addImageItem(url);
-                }
-                imageInput.value = '';
+            document.getElementById('a4DeleteSelected').addEventListener('click', () => {
+                if (a4SelectedItem) { a4SelectedItem.remove(); a4SelectItem(null); }
             });
 
-            deleteBtn.addEventListener('click', () => {
-                if (selectedItem) {
-                    selectedItem.remove();
-                    selectItem(null);
-                }
-            });
-
-            paper.addEventListener('pointerdown', (e) => {
-                if (e.target === paper || e.target.classList.contains('a4-paper-grid')) {
-                    selectItem(null);
-                }
-            });
-
-            paper.addEventListener('click', (e) => {
-                const item = e.target.closest('.a4-item');
-                if (item) selectItem(item);
-            });
-
-            // Keyboard delete
-            window.addEventListener('keydown', (e) => {
-                if (!overlay.classList.contains('active')) return;
-                if ((e.key === 'Delete' || e.key === 'Backspace') && selectedItem) {
-                    // Don't delete if focused on input
-                    if (document.activeElement.tagName === 'INPUT') return;
-                    selectedItem.remove();
-                    selectItem(null);
-                }
-                if (e.key === 'Escape') {
-                    closeA4PrintLayout();
-                }
-            });
-
-            // Print functionality - convert to mm before print
-            function convertAllToMm() {
-                document.querySelectorAll('#a4Paper .a4-item').forEach(el => {
-                    const r = el.getBoundingClientRect();
-                    const pr = paper.getBoundingClientRect();
-                    const leftPx = r.left - pr.left;
-                    const topPx = r.top - pr.top;
-
-                    el.dataset.prevLeft = el.style.left;
-                    el.dataset.prevTop = el.style.top;
-                    el.dataset.prevWidth = el.style.width;
-                    el.dataset.prevHeight = el.style.height;
-
-                    el.style.left = (leftPx * mmXPerPx()).toFixed(2) + 'mm';
-                    el.style.top = (topPx * mmYPerPx()).toFixed(2) + 'mm';
-                    el.style.width = (r.width * mmXPerPx()).toFixed(2) + 'mm';
-                    el.style.height = (r.height * mmYPerPx()).toFixed(2) + 'mm';
-                });
-            }
-
-            function restoreFromPx() {
-                document.querySelectorAll('#a4Paper .a4-item').forEach(el => {
-                    if (el.dataset.prevLeft) el.style.left = el.dataset.prevLeft;
-                    if (el.dataset.prevTop) el.style.top = el.dataset.prevTop;
-                    if (el.dataset.prevWidth) el.style.width = el.dataset.prevWidth;
-                    if (el.dataset.prevHeight) el.style.height = el.dataset.prevHeight;
-                });
-            }
-
-            window.addEventListener('beforeprint', () => {
-                if (overlay.classList.contains('active')) {
-                    selectItem(null);
-                    convertAllToMm();
-                }
-            });
-
-            window.addEventListener('afterprint', () => {
-                if (overlay.classList.contains('active')) {
-                    restoreFromPx();
-                }
-            });
-
-            printBtn.addEventListener('click', () => {
+            document.getElementById('a4Print').addEventListener('click', () => {
                 incrementUsage();
                 window.print();
             });
 
-            closeBtn.addEventListener('click', closeA4PrintLayout);
+            document.getElementById('a4Close').addEventListener('click', closeA4PrintLayout);
 
-            // Global functions
-            window.openA4PrintLayout = function() {
-                if (!canUse()) {
-                    document.getElementById('limitModal').classList.add('active');
-                    return;
+            paper.addEventListener('pointerdown', (e) => {
+                if (e.target === paper || e.target.classList.contains('a4-paper-grid')) {
+                    a4SelectItem(null);
                 }
-                overlay.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            };
+            });
 
-            window.closeA4PrintLayout = function() {
-                overlay.classList.remove('active');
-                document.body.style.overflow = '';
-                // Clear all items
-                document.querySelectorAll('#a4Paper .a4-item').forEach(el => el.remove());
-                selectItem(null);
-            };
-        })();
+            document.getElementById('a4ItemWidth').addEventListener('input', function() {
+                if (!a4SelectedItem) return;
+                const lock = document.getElementById('a4LockAspect').checked;
+                const wpx = Math.max(5, parseFloat(this.value) || 0) * a4PxPerMmX();
+                if (lock) {
+                    const ratio = a4SelectedItem.offsetHeight / a4SelectedItem.offsetWidth || 1;
+                    a4SelectedItem.style.height = (wpx * ratio) + 'px';
+                }
+                a4SelectedItem.style.width = wpx + 'px';
+                a4UpdateSizeControls();
+            });
+
+            document.getElementById('a4ItemHeight').addEventListener('input', function() {
+                if (!a4SelectedItem) return;
+                const lock = document.getElementById('a4LockAspect').checked;
+                const hpx = Math.max(5, parseFloat(this.value) || 0) * a4PxPerMmY();
+                if (lock) {
+                    const ratio = a4SelectedItem.offsetWidth / a4SelectedItem.offsetHeight || 1;
+                    a4SelectedItem.style.width = (hpx * ratio) + 'px';
+                }
+                a4SelectedItem.style.height = hpx + 'px';
+                a4UpdateSizeControls();
+            });
+
+            window.addEventListener('keydown', (e) => {
+                if (!overlay.classList.contains('active')) return;
+                if ((e.key === 'Delete' || e.key === 'Backspace') && a4SelectedItem && document.activeElement.tagName !== 'INPUT') {
+                    a4SelectedItem.remove();
+                    a4SelectItem(null);
+                }
+                if (e.key === 'Escape') closeA4PrintLayout();
+            });
+
+            // Print: convert to mm for accurate printing
+            window.addEventListener('beforeprint', () => {
+                if (!overlay.classList.contains('active')) return;
+                a4SelectItem(null);
+                document.querySelectorAll('#a4Paper .a4-item').forEach(el => {
+                    const r = el.getBoundingClientRect();
+                    const pr = paper.getBoundingClientRect();
+                    el.dataset.prev = el.style.cssText;
+                    el.style.left = ((r.left - pr.left) * a4MmPerPxX()).toFixed(2) + 'mm';
+                    el.style.top = ((r.top - pr.top) * a4MmPerPxY()).toFixed(2) + 'mm';
+                    el.style.width = (r.width * a4MmPerPxX()).toFixed(2) + 'mm';
+                    el.style.height = (r.height * a4MmPerPxY()).toFixed(2) + 'mm';
+                });
+            });
+
+            window.addEventListener('afterprint', () => {
+                document.querySelectorAll('#a4Paper .a4-item').forEach(el => {
+                    if (el.dataset.prev) el.style.cssText = el.dataset.prev;
+                });
+            });
+        });
     </script>
 </body>
 </html>
