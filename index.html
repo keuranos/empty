@@ -635,6 +635,175 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* A4 Print Layout Styles */
+        .a4-layout-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #fafafa;
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+        }
+
+        .a4-layout-overlay.active {
+            display: flex;
+        }
+
+        .a4-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--gray-200);
+            background: white;
+        }
+
+        .a4-toolbar .group {
+            display: flex;
+            gap: 0.4rem;
+            align-items: center;
+            padding: 0.3rem 0.5rem;
+            background: var(--gray-100);
+            border-radius: 999px;
+        }
+
+        .a4-toolbar button,
+        .a4-toolbar select,
+        .a4-toolbar input[type="number"] {
+            appearance: none;
+            border: 1px solid var(--gray-200);
+            background: white;
+            padding: 0.45rem 0.7rem;
+            border-radius: 999px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .a4-toolbar button:hover {
+            background: var(--gray-50);
+        }
+
+        .a4-toolbar .spacer {
+            flex: 1;
+        }
+
+        .a4-toolbar label {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.85rem;
+            color: var(--gray-700);
+        }
+
+        .a4-workspace {
+            display: grid;
+            place-items: center;
+            padding: 1rem;
+            flex: 1;
+            overflow: auto;
+        }
+
+        .a4-paper {
+            position: relative;
+            width: 210mm;
+            height: 297mm;
+            background: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+            border: 1px solid var(--gray-200);
+            overflow: hidden;
+        }
+
+        .a4-paper-grid {
+            position: absolute;
+            inset: 0;
+            background: conic-gradient(from 90deg at 1px 1px, #0000 90deg, #0001 0) 0 0/20px 20px;
+            opacity: 0.05;
+            pointer-events: none;
+        }
+
+        .a4-item {
+            position: absolute;
+            min-width: 20px;
+            min-height: 20px;
+            border: 1px dashed transparent;
+            z-index: 2;
+            cursor: move;
+        }
+
+        .a4-item.selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+        }
+
+        .a4-item img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        .a4-handle {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 3px;
+            z-index: 3;
+        }
+
+        .a4-handle.nw { left: -7px; top: -7px; cursor: nwse-resize; }
+        .a4-handle.ne { right: -7px; top: -7px; cursor: nesw-resize; }
+        .a4-handle.sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
+        .a4-handle.se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+
+        /* Print styles for A4 Layout */
+        @media print {
+            body > *:not(.a4-layout-overlay) {
+                display: none !important;
+            }
+            .a4-layout-overlay {
+                display: block !important;
+                position: static !important;
+                background: white !important;
+            }
+            .a4-toolbar {
+                display: none !important;
+            }
+            .a4-workspace {
+                padding: 0 !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            .a4-paper {
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 !important;
+                width: 210mm !important;
+                height: 297mm !important;
+            }
+            .a4-item {
+                border: none !important;
+                box-shadow: none !important;
+            }
+            .a4-handle {
+                display: none !important;
+            }
+            @page {
+                size: 210mm 297mm;
+                margin: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -712,6 +881,11 @@
                 <h3>Image to PDF</h3>
                 <p>Create PDF from multiple images</p>
             </div>
+            <div class="tool-card" onclick="openA4PrintLayout()">
+                <div class="tool-icon" style="background: #ecfdf5; color: #10b981;">🖨️</div>
+                <h3>A4 Print Layout</h3>
+                <p>Arrange photos on A4 paper with exact mm sizing</p>
+            </div>
         </div>
     </section>
 
@@ -782,6 +956,36 @@
                 <p>You've used all 5 free conversions for today. Upgrade to Pro for unlimited access.</p>
                 <a href="#pricing" class="btn btn-primary" onclick="closeLimitModal()" style="width: 100%;">View Pro Plans</a>
                 <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--gray-500);">Or come back tomorrow for 5 more free uses</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- A4 Print Layout Editor -->
+    <div class="a4-layout-overlay" id="a4LayoutOverlay">
+        <div class="a4-toolbar">
+            <div class="group">
+                <button id="a4AddImage">🖼️ Add Image</button>
+                <input type="file" id="a4ImageInput" accept="image/*" multiple style="display:none">
+                <button id="a4DeleteSelected">🗑️ Delete</button>
+            </div>
+
+            <div class="group" id="a4SizeControls" style="display:none">
+                <label>Width (mm) <input type="number" id="a4ItemWidth" min="5" step="1" style="width:5rem"></label>
+                <label>Height (mm) <input type="number" id="a4ItemHeight" min="5" step="1" style="width:5rem"></label>
+                <label><input type="checkbox" id="a4LockAspect" checked> Lock ratio</label>
+            </div>
+
+            <div class="spacer"></div>
+
+            <div class="group">
+                <button id="a4Print">🖨️ Print</button>
+                <button id="a4Close">✕ Close</button>
+            </div>
+        </div>
+
+        <div class="a4-workspace">
+            <div class="a4-paper" id="a4Paper">
+                <div class="a4-paper-grid"></div>
             </div>
         </div>
     </div>
@@ -1423,6 +1627,325 @@
                 closeLimitModal();
             }
         });
+
+        // =============================================
+        // A4 PRINT LAYOUT FUNCTIONALITY
+        // =============================================
+        (function() {
+            const overlay = document.getElementById('a4LayoutOverlay');
+            const paper = document.getElementById('a4Paper');
+            const addImageBtn = document.getElementById('a4AddImage');
+            const imageInput = document.getElementById('a4ImageInput');
+            const deleteBtn = document.getElementById('a4DeleteSelected');
+            const sizeControls = document.getElementById('a4SizeControls');
+            const printBtn = document.getElementById('a4Print');
+            const closeBtn = document.getElementById('a4Close');
+            const widthInput = document.getElementById('a4ItemWidth');
+            const heightInput = document.getElementById('a4ItemHeight');
+            const lockAspect = document.getElementById('a4LockAspect');
+
+            const PAPER_MM = { w: 210, h: 297 };
+            let selectedItem = null;
+
+            // Unit conversion helpers
+            function mmXPerPx() { return PAPER_MM.w / paper.clientWidth; }
+            function mmYPerPx() { return PAPER_MM.h / paper.clientHeight; }
+            function pxXPerMm() { return paper.clientWidth / PAPER_MM.w; }
+            function pxYPerMm() { return paper.clientHeight / PAPER_MM.h; }
+
+            // Selection management
+            function selectItem(el) {
+                if (selectedItem) selectedItem.classList.remove('selected');
+                selectedItem = el;
+                if (el) el.classList.add('selected');
+                updateSizeControls();
+            }
+
+            function updateSizeControls() {
+                if (selectedItem) {
+                    sizeControls.style.display = 'flex';
+                    const r = selectedItem.getBoundingClientRect();
+                    widthInput.value = Math.round(r.width * mmXPerPx());
+                    heightInput.value = Math.round(r.height * mmYPerPx());
+                } else {
+                    sizeControls.style.display = 'none';
+                }
+            }
+
+            // Add image to paper
+            function addImageItem(src) {
+                const el = document.createElement('div');
+                el.className = 'a4-item';
+                el.style.left = '20px';
+                el.style.top = '20px';
+                el.style.width = '200px';
+                el.style.height = '150px';
+
+                // Add resize handles
+                ['nw', 'ne', 'sw', 'se'].forEach(pos => {
+                    const handle = document.createElement('div');
+                    handle.className = 'a4-handle ' + pos;
+                    el.appendChild(handle);
+                });
+
+                // Add image
+                const img = document.createElement('img');
+                img.src = src;
+                img.draggable = false;
+                el.appendChild(img);
+
+                paper.appendChild(el);
+                attachDragResize(el);
+                selectItem(el);
+
+                // Resize to fit nicely when loaded
+                img.onload = () => {
+                    const maxW = paper.clientWidth * 0.5;
+                    const maxH = paper.clientHeight * 0.5;
+                    let w = img.naturalWidth, h = img.naturalHeight;
+                    const scale = Math.min(maxW / w, maxH / h, 1);
+                    el.style.width = (w * scale) + 'px';
+                    el.style.height = (h * scale) + 'px';
+                    el.dataset.aspect = (w / h).toString();
+                    updateSizeControls();
+                };
+            }
+
+            // Drag and resize functionality
+            function attachDragResize(el) {
+                let mode = null;
+                let start = { x: 0, y: 0, l: 0, t: 0, w: 0, h: 0, aspect: 1 };
+
+                const onDown = (e) => {
+                    const t = e.target;
+                    if (t.classList.contains('a4-handle')) {
+                        mode = 'resize-' + [...t.classList].find(c => /^nw|ne|sw|se$/.test(c));
+                    } else {
+                        mode = 'move';
+                    }
+                    selectItem(el);
+
+                    const r = el.getBoundingClientRect();
+                    const pr = paper.getBoundingClientRect();
+                    start = {
+                        x: e.clientX,
+                        y: e.clientY,
+                        l: r.left - pr.left,
+                        t: r.top - pr.top,
+                        w: r.width,
+                        h: r.height,
+                        aspect: r.width / r.height
+                    };
+
+                    window.addEventListener('pointermove', onMove);
+                    window.addEventListener('pointerup', onUp);
+                    e.preventDefault();
+                };
+
+                const onMove = (e) => {
+                    const dx = e.clientX - start.x;
+                    const dy = e.clientY - start.y;
+                    const maxW = paper.clientWidth;
+                    const maxH = paper.clientHeight;
+
+                    if (mode === 'move') {
+                        let nl = start.l + dx;
+                        let nt = start.t + dy;
+                        nl = Math.max(0, Math.min(maxW - start.w, nl));
+                        nt = Math.max(0, Math.min(maxH - start.h, nt));
+                        el.style.left = nl + 'px';
+                        el.style.top = nt + 'px';
+                    } else if (mode) {
+                        let w = start.w, h = start.h, l = start.l, t = start.t;
+                        const keep = lockAspect.checked;
+                        const corner = mode.split('-')[1];
+
+                        if (corner === 'se') {
+                            w = start.w + dx;
+                            h = keep ? w / start.aspect : start.h + dy;
+                        }
+                        if (corner === 'ne') {
+                            w = start.w + dx;
+                            h = keep ? w / start.aspect : start.h - dy;
+                            t = start.t + (start.h - h);
+                        }
+                        if (corner === 'sw') {
+                            w = start.w - dx;
+                            h = keep ? w / start.aspect : start.h + dy;
+                            l = start.l + (start.w - w);
+                        }
+                        if (corner === 'nw') {
+                            w = start.w - dx;
+                            h = keep ? w / start.aspect : start.h - dy;
+                            l = start.l + (start.w - w);
+                            t = start.t + (start.h - h);
+                        }
+
+                        w = Math.max(20, Math.min(maxW - l, w));
+                        h = Math.max(20, Math.min(maxH - t, h));
+                        el.style.width = w + 'px';
+                        el.style.height = h + 'px';
+                        el.style.left = l + 'px';
+                        el.style.top = t + 'px';
+                    }
+                    updateSizeControls();
+                };
+
+                const onUp = () => {
+                    window.removeEventListener('pointermove', onMove);
+                    window.removeEventListener('pointerup', onUp);
+                };
+
+                el.addEventListener('pointerdown', onDown);
+            }
+
+            // Size input handlers
+            widthInput.addEventListener('input', () => {
+                if (!selectedItem) return;
+                const keep = lockAspect.checked;
+                let wmm = parseFloat(widthInput.value) || 0;
+                wmm = Math.max(5, wmm);
+                let wpx = wmm * pxXPerMm();
+
+                if (keep) {
+                    const ratio = selectedItem.offsetHeight / selectedItem.offsetWidth || 1;
+                    selectedItem.style.width = wpx + 'px';
+                    selectedItem.style.height = (wpx * ratio) + 'px';
+                } else {
+                    selectedItem.style.width = wpx + 'px';
+                }
+                updateSizeControls();
+            });
+
+            heightInput.addEventListener('input', () => {
+                if (!selectedItem) return;
+                const keep = lockAspect.checked;
+                let hmm = parseFloat(heightInput.value) || 0;
+                hmm = Math.max(5, hmm);
+                let hpx = hmm * pxYPerMm();
+
+                if (keep) {
+                    const ratio = selectedItem.offsetWidth / selectedItem.offsetHeight || 1;
+                    selectedItem.style.height = hpx + 'px';
+                    selectedItem.style.width = (hpx * ratio) + 'px';
+                } else {
+                    selectedItem.style.height = hpx + 'px';
+                }
+                updateSizeControls();
+            });
+
+            // Event listeners
+            addImageBtn.addEventListener('click', () => imageInput.click());
+
+            imageInput.addEventListener('change', (e) => {
+                const files = e.target.files;
+                if (!files) return;
+                for (let f of files) {
+                    const url = URL.createObjectURL(f);
+                    addImageItem(url);
+                }
+                imageInput.value = '';
+            });
+
+            deleteBtn.addEventListener('click', () => {
+                if (selectedItem) {
+                    selectedItem.remove();
+                    selectItem(null);
+                }
+            });
+
+            paper.addEventListener('pointerdown', (e) => {
+                if (e.target === paper || e.target.classList.contains('a4-paper-grid')) {
+                    selectItem(null);
+                }
+            });
+
+            paper.addEventListener('click', (e) => {
+                const item = e.target.closest('.a4-item');
+                if (item) selectItem(item);
+            });
+
+            // Keyboard delete
+            window.addEventListener('keydown', (e) => {
+                if (!overlay.classList.contains('active')) return;
+                if ((e.key === 'Delete' || e.key === 'Backspace') && selectedItem) {
+                    // Don't delete if focused on input
+                    if (document.activeElement.tagName === 'INPUT') return;
+                    selectedItem.remove();
+                    selectItem(null);
+                }
+                if (e.key === 'Escape') {
+                    closeA4PrintLayout();
+                }
+            });
+
+            // Print functionality - convert to mm before print
+            function convertAllToMm() {
+                document.querySelectorAll('#a4Paper .a4-item').forEach(el => {
+                    const r = el.getBoundingClientRect();
+                    const pr = paper.getBoundingClientRect();
+                    const leftPx = r.left - pr.left;
+                    const topPx = r.top - pr.top;
+
+                    el.dataset.prevLeft = el.style.left;
+                    el.dataset.prevTop = el.style.top;
+                    el.dataset.prevWidth = el.style.width;
+                    el.dataset.prevHeight = el.style.height;
+
+                    el.style.left = (leftPx * mmXPerPx()).toFixed(2) + 'mm';
+                    el.style.top = (topPx * mmYPerPx()).toFixed(2) + 'mm';
+                    el.style.width = (r.width * mmXPerPx()).toFixed(2) + 'mm';
+                    el.style.height = (r.height * mmYPerPx()).toFixed(2) + 'mm';
+                });
+            }
+
+            function restoreFromPx() {
+                document.querySelectorAll('#a4Paper .a4-item').forEach(el => {
+                    if (el.dataset.prevLeft) el.style.left = el.dataset.prevLeft;
+                    if (el.dataset.prevTop) el.style.top = el.dataset.prevTop;
+                    if (el.dataset.prevWidth) el.style.width = el.dataset.prevWidth;
+                    if (el.dataset.prevHeight) el.style.height = el.dataset.prevHeight;
+                });
+            }
+
+            window.addEventListener('beforeprint', () => {
+                if (overlay.classList.contains('active')) {
+                    selectItem(null);
+                    convertAllToMm();
+                }
+            });
+
+            window.addEventListener('afterprint', () => {
+                if (overlay.classList.contains('active')) {
+                    restoreFromPx();
+                }
+            });
+
+            printBtn.addEventListener('click', () => {
+                incrementUsage();
+                window.print();
+            });
+
+            closeBtn.addEventListener('click', closeA4PrintLayout);
+
+            // Global functions
+            window.openA4PrintLayout = function() {
+                if (!canUse()) {
+                    document.getElementById('limitModal').classList.add('active');
+                    return;
+                }
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            };
+
+            window.closeA4PrintLayout = function() {
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+                // Clear all items
+                document.querySelectorAll('#a4Paper .a4-item').forEach(el => el.remove());
+                selectItem(null);
+            };
+        })();
     </script>
 </body>
 </html>
